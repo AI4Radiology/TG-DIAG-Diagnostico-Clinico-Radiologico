@@ -1,0 +1,20 @@
+name: distilbert
+scaler: none
+trainer:
+  module: models.distilbert.model
+  class: Trainer
+hyperparameters:
+  model_name: distilbert-base-multilingual-cased
+  num_labels: 4
+  dropout_rate: 0.1
+  num_epochs: 5
+  batch_size: 16
+  learning_rate: 2.0e-5
+validation_grid:
+  scalers:
+    - none
+  model_params:
+    - learning_rate: 2.0e-5
+      num_epochs: 3
+    - learning_rate: 3.0e-5
+      num_epochs: 5

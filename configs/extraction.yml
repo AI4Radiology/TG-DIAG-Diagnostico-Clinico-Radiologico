@@ -1,0 +1,11 @@
+input_file: data/rad_criticos.xlsx
+processed_file: data/processed/data_processed.csv
+text_column: texto
+patologias:
+  - acv
+  - hemorragia_intracraneal
+  - desviacion_linea_media
+  - fractura_craneal
+cleaning:
+  drop_duplicates: true
+  dropna_hallazgos: true

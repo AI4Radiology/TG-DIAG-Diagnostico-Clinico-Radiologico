@@ -1,0 +1,30 @@
+name: svm
+scaler: tfidf
+oversampling: ros
+tfidf_params:
+  max_features: 200
+  ngram_range: [1, 2]
+  min_df: 3
+  max_df: 0.9
+  sublinear_tf: true
+  stop_words: spanish_clinical
+trainer:
+  module: models.svm.model
+  class: Trainer
+hyperparameters:
+  C: 1.0
+  class_weight: balanced
+  max_iter: 1000
+  random_state: 42
+validation_grid:
+  scalers:
+    - max_features: 200
+      ngram_range: [1, 2]
+      min_df: 3
+      max_df: 0.9
+      sublinear_tf: true
+      stop_words: spanish_clinical
+  model_params:
+    - C: 0.1
+    - C: 1.0
+    - C: 10.0

@@ -1,0 +1,12 @@
+processed_file: data/processed/data_processed.csv
+text_column: texto
+patologias:
+  - acv
+  - hemorragia_intracraneal
+  - desviacion_linea_media
+  - fractura_craneal
+stratify_on: acv
+test_size: 0.2
+random_state: 42
+models_root: models
+output_root: outputs

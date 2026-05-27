@@ -1,0 +1,13 @@
+name: lstm
+trainer:
+  module: models.lstm.model
+  class: Trainer
+architecture:
+  vocab: 12000
+  emb_dim: 100
+  maxlen: null        # null → computed at runtime as p95 of training text lengths
+training:
+  epochs: 20
+  batch_size: 16
+  validation_split: 0.15
+  early_stopping_patience: 4
