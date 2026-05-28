@@ -84,6 +84,7 @@ models/distilbert/acv/
 models/distilbert/hemorragia/
 models/distilbert/desviacion_linea_media/
 models/distilbert/fractura_compleja_craneo/
+models/distilbert_criticos/
 *.safetensors
 
 # Environment secrets
