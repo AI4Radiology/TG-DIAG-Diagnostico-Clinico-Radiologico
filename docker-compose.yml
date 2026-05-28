@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: tc_diag_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models/distilbert:/app/models/distilbert:ro  # Modelos en modo solo lectura
+      - ./tc_diag.db:/app/tc_diag.db                   # Persistencia de la BD local
+      - ./.env:/app/.env:ro                            # Cargar variables de entorno
+    environment:
+      - DISTILBERT_MODELS_PATH=/app/models/distilbert
+      - DATABASE_URL=sqlite:////app/tc_diag.db
+    restart: unless-stopped

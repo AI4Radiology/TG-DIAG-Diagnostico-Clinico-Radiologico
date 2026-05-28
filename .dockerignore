@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Modelos (se montan como volumen, NO deben copiarse en la imagen)
+models/
+
+# Base de datos local (se monta como volumen)
+tc_diag.db
+
+# Notebooks y datos brutos
+data/
+outputs/
+*.ipynb
+
+# Caché de Python y pytest
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Docker
+.dockerignore
+docker-compose.yml
