@@ -61,7 +61,7 @@ class Diagnostico(Base):
     requiere_revision = Column(Boolean, default=False)
     whatsapp_enviado = Column(Boolean, default=False)
     fuente = Column(String(20), default="HL7")
-    modelo_version = Column(String(50), default="XGBoost-LLM-ROS-v1")
+    modelo_version = Column(String(50), default="DistilBERT-Ensamble-v2")
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 

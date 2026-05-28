@@ -26,6 +26,7 @@ class ReporteRequest(BaseModel):
     hallazgos: str
     opinion: Optional[str] = ""
     fuente: Optional[str] = "HL7"
+    es_critico_fase1: Optional[bool] = None
 
     @field_validator("hallazgos")
     @classmethod

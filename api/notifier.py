@@ -22,20 +22,28 @@ _TO: str = os.getenv("WHATSAPP_GROUP_TO", "")
 
 MENSAJES_POR_PATOLOGIA: dict[str, str] = {
     "acv": (
-        "🔴 ALERTA TC-DIAG | ACV detectado | ID: {report_id} | "
-        "Confianza: {confianza}% | Activar protocolo neurológico."
+        "[TC-DIAG] Hallazgo sugestivo de ACV\n"
+        "Reporte: {report_id} | Prob: {confianza}%\n"
+        "CIE-10: I64 – Accidente cerebrovascular no especificado\n"
+        "Requiere evaluación médica inmediata."
     ),
     "hemorragia_intracraneal": (
-        "🔴 ALERTA TC-DIAG | Hemorragia intracraneal | ID: {report_id} | "
-        "Confianza: {confianza}% | Activar protocolo neuroquirúrgico."
+        "[TC-DIAG] Hallazgo sugestivo de hemorragia intracraneal\n"
+        "Reporte: {report_id} | Prob: {confianza}%\n"
+        "CIE-10: I62.9 – Hemorragia intracraneal no especificada\n"
+        "Requiere evaluación médica inmediata."
     ),
     "desviacion_linea_media": (
-        "🟠 ALERTA TC-DIAG | Desviación línea media | ID: {report_id} | "
-        "Confianza: {confianza}% | Evaluar efecto de masa urgente."
+        "[TC-DIAG] Hallazgo sugestivo de desviación de línea media\n"
+        "Reporte: {report_id} | Prob: {confianza}%\n"
+        "CIE-10: G93.5 – Compresión del encéfalo\n"
+        "Requiere evaluación médica inmediata."
     ),
     "fractura_craneal": (
-        "🟡 ALERTA TC-DIAG | Fractura craneal | ID: {report_id} | "
-        "Confianza: {confianza}% | Revisar con neurocirugía."
+        "[TC-DIAG] Hallazgo sugestivo de fractura de cráneo\n"
+        "Reporte: {report_id} | Prob: {confianza}%\n"
+        "CIE-10: S02.9 – Fractura de cráneo y huesos faciales\n"
+        "Requiere evaluación médica inmediata."
     ),
 }
 

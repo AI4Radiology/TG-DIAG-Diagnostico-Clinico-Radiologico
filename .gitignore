@@ -19,6 +19,7 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+.pytest_cache/
 .tox/
 .nox/
 .cache
@@ -90,6 +91,12 @@ models/distilbert_criticos/
 # Environment secrets
 .env
 .envrc
+
+# Base de datos local (se regenera en runtime)
+tc_diag.db
+
+# Archivos HL7 de prueba (datos locales, no subir)
+data/HL7_Entrada/
 
 # Misc tooling
 .pdm-python
