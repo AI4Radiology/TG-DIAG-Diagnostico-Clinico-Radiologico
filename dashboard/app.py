@@ -20,7 +20,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/tc_diag")
+DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///tc_diag.db")
 
 st.set_page_config(
     page_title="TC-DIAG Dashboard",
@@ -69,7 +69,7 @@ def cargar_datos(date_from: date, date_to: date) -> pd.DataFrame:
 with st.sidebar:
     st.title("🧠 TC-DIAG")
     st.caption("Sistema de diagnóstico radiológico asistido")
-    st.info("**Modelo:** XGBoost LLM+ROS v1\n\n**F1-Macro:** 0.955")
+    st.info("**Modelo:** DistilBERT multilingual (ensamble v2)\n\n**Arquitectura:** 4 clasificadores binarios")
     st.divider()
 
     hoy = date.today()

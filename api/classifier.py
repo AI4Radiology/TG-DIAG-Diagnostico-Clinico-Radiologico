@@ -1,8 +1,8 @@
-"""Clasificador singleton XGBoost para TC-DIAG.
+"""Clasificador DistilBERT para TC-DIAG.
 
-Carga el pipeline sklearn serializado con joblib y expone un método predecir()
-que preprocesa el texto con el mismo pipeline que se usó en entrenamiento.
-Sin dependencias de torch, transformers ni GPU.
+Carga 4 modelos binarios DistilBERT (uno por patología) y expone un método
+predecir() que retorna la patología con mayor probabilidad.
+Arquitectura: distilbert-base-multilingual-cased con fine-tuning binario.
 """
 
 from __future__ import annotations
@@ -10,71 +10,107 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-import joblib
+import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from dotenv import load_dotenv
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-MODEL_PATH: str = os.getenv(
-    "PATHOLOGY_MODEL_PATH",
-    str(Path(__file__).resolve().parents[1] / "outputs" / "saved_models" / "tc_diag_pipeline.pkl"),
+# Ruta base donde están las 4 subcarpetas de modelos DistilBERT.
+# Primero busca la variable de entorno; si no existe, usa la ruta relativa
+# al otro repositorio en la misma carpeta de trabajo.
+_DEFAULT_DISTILBERT_PATH = str(
+    Path(__file__).resolve().parents[1] / "models" / "distilbert"
 )
+DISTILBERT_MODELS_PATH: str = os.getenv("DISTILBERT_MODELS_PATH", _DEFAULT_DISTILBERT_PATH)
 
-LABEL2ID: Dict[str, int] = {
-    "acv": 0,
-    "hemorragia_intracraneal": 1,
-    "desviacion_linea_media": 2,
-    "fractura_craneal": 3,
+# Mapa de subcarpeta -> nombre canónico que usa el resto de la API
+# (hemorragia en el notebook, hemorragia_intracraneal en la API)
+LABEL_MAP: Dict[str, str] = {
+    "acv": "acv",
+    "hemorragia": "hemorragia_intracraneal",
+    "desviacion_linea_media": "desviacion_linea_media",
+    "fractura_compleja_craneo": "fractura_craneal",
 }
-ID2LABEL: Dict[int, str] = {v: k for k, v in LABEL2ID.items()}
 
-CONFIANZA_MINIMA: float = float(os.getenv("PATHOLOGY_MIN_CONFIDENCE", "0.75"))
+CONFIANZA_MINIMA: float = float(os.getenv("PATHOLOGY_MIN_CONFIDENCE", "0.70"))
+
+# Usar GPU si está disponible, de lo contrario CPU
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DiagnosisClassifier:
-    """Clasifica patologías en informes de TC de cráneo usando XGBoost.
+    """Clasifica patologías en informes de TC de cráneo usando 4 modelos DistilBERT binarios.
 
     Attributes:
-        pipeline: Pipeline sklearn (TF-IDF + XGBClassifier) cargado desde disco.
+        modelos: Diccionario {etiqueta_api -> model}.
+        tokenizadores: Diccionario {etiqueta_api -> tokenizer}.
     """
 
-    def __init__(self, model_path: str) -> None:
-        """Carga el pipeline serializado desde disco.
+    def __init__(self, models_base_path: str) -> None:
+        """Carga los 4 modelos DistilBERT desde sus respectivas subcarpetas.
 
         Args:
-            model_path: Ruta al archivo .pkl generado por joblib.dump().
+            models_base_path: Ruta base que contiene las subcarpetas
+                acv/, hemorragia/, desviacion_linea_media/, fractura_compleja_craneo/.
 
         Raises:
-            FileNotFoundError: Si el archivo del modelo no existe.
+            FileNotFoundError: Si alguna subcarpeta no existe.
         """
-        self.pipeline = joblib.load(model_path)
-        logger.info("Modelo TC-DIAG cargado desde: %s", model_path)
+        base = Path(models_base_path)
+        self.modelos: Dict[str, AutoModelForSequenceClassification] = {}
+        self.tokenizadores: Dict[str, AutoTokenizer] = {}
 
-    def _preprocesar(
-        self,
-        hallazgos: str,
-        opinion: str = "",
-        datos_clinicos: str = "",
-    ) -> str:
-        """Preprocesa los campos del informe usando el mismo pipeline del entrenamiento.
+        for carpeta, etiqueta_api in LABEL_MAP.items():
+            ruta = base / carpeta
+            if not ruta.exists():
+                raise FileNotFoundError(
+                    f"No se encontró el modelo DistilBERT para '{carpeta}' en: {ruta}\n"
+                    f"Configura DISTILBERT_MODELS_PATH en el archivo .env."
+                )
+            logger.info("Cargando modelo DistilBERT '%s' desde: %s", etiqueta_api, ruta)
+            self.tokenizadores[etiqueta_api] = AutoTokenizer.from_pretrained(str(ruta))
+            modelo = AutoModelForSequenceClassification.from_pretrained(str(ruta))
+            modelo.eval()
+            modelo.to(DEVICE)
+            self.modelos[etiqueta_api] = modelo
 
-        Importa combinar_campos de src.preprocessing para garantizar que la
-        inferencia use exactamente la misma transformación que el entrenamiento.
+        logger.info(
+            "4 modelos DistilBERT cargados correctamente en %s.",
+            "GPU" if DEVICE.type == "cuda" else "CPU",
+        )
+
+    def _prob_positiva(self, etiqueta: str, texto: str) -> float:
+        """Obtiene la probabilidad de clase positiva (1) para un modelo binario.
 
         Args:
-            hallazgos: Sección de hallazgos del informe.
-            opinion: Sección de opinión/conclusión.
-            datos_clinicos: Datos clínicos del paciente.
+            etiqueta: Nombre de la patología (clave en self.modelos).
+            texto: Texto clínico preprocesado.
 
         Returns:
-            Texto lematizado y combinado listo para el modelo.
+            Probabilidad de que el texto pertenezca a la clase positiva.
         """
-        from src.preprocessing import combinar_campos
-        return combinar_campos(hallazgos, opinion, datos_clinicos)
+        tokenizador = self.tokenizadores[etiqueta]
+        modelo = self.modelos[etiqueta]
+
+        inputs = tokenizador(
+            texto,
+            return_tensors="pt",
+            truncation=True,
+            max_length=512,
+            padding=True,
+        ).to(DEVICE)
+
+        with torch.no_grad():
+            logits = modelo(**inputs).logits
+
+        probs = torch.softmax(logits, dim=-1)[0]
+        # índice 1 = clase positiva (patología presente)
+        return float(probs[1].item())
 
     def predecir(
         self,
@@ -82,7 +118,10 @@ class DiagnosisClassifier:
         opinion: str = "",
         datos_clinicos: str = "",
     ) -> Dict:
-        """Clasifica un informe radiológico y retorna patología y probabilidades.
+        """Clasifica un informe radiológico usando el ensamble de 4 DistilBERT.
+
+        Combina los campos del informe en un solo texto y pasa por los 4 modelos.
+        La patología ganadora es la de mayor probabilidad.
 
         Args:
             hallazgos: Sección de hallazgos del informe.
@@ -92,27 +131,27 @@ class DiagnosisClassifier:
         Returns:
             Diccionario con patologia, probabilidades, confianza y requiere_revision.
         """
-        texto = self._preprocesar(hallazgos, opinion, datos_clinicos)
+        partes: List[str] = [p.strip() for p in [hallazgos, opinion, datos_clinicos] if p.strip()]
+        texto = " ".join(partes)
 
-        pred = self.pipeline.predict([texto])[0]
-        probs = self.pipeline.predict_proba([texto])[0]
+        probabilidades: Dict[str, float] = {}
+        for etiqueta in self.modelos:
+            probabilidades[etiqueta] = round(self._prob_positiva(etiqueta, texto), 4)
 
-        confianza = float(max(probs))
-        patologia = ID2LABEL[int(pred)]
+        patologia = max(probabilidades, key=lambda k: probabilidades[k])
+        confianza = probabilidades[patologia]
 
         return {
             "patologia": patologia,
-            "probabilidades": {
-                ID2LABEL[i]: round(float(p), 4) for i, p in enumerate(probs)
-            },
-            "confianza": round(confianza, 4),
+            "probabilidades": probabilidades,
+            "confianza": confianza,
             "requiere_revision": confianza < CONFIANZA_MINIMA,
         }
 
 
 # Instancia global — se carga una sola vez al arrancar la API.
 try:
-    classifier: Optional[DiagnosisClassifier] = DiagnosisClassifier(MODEL_PATH)
+    classifier: Optional[DiagnosisClassifier] = DiagnosisClassifier(DISTILBERT_MODELS_PATH)
 except Exception as exc:
-    logger.error("No se pudo cargar el modelo TC-DIAG: %s", exc)
+    logger.error("No se pudo cargar el ensamble DistilBERT: %s", exc)
     classifier = None

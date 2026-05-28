@@ -8,7 +8,7 @@
 // de la institución. Si se deja vacío, se filtra solo por descripción.
 // Ejemplo: var CODIGOS_TC_CRANEAL = ["870100", "870101"];
 // ---------------------------------------------------------------------------
-var CODIGOS_TC_CRANEAL = [];
+var CODIGOS_TC_CRANEAL = ["879111"];
 
 // ---------------------------------------------------------------------------
 // Función auxiliar: elimina tildes para comparación de texto
@@ -26,7 +26,7 @@ try {
     logger.info('TC-DIAG: Iniciando extracción de segmentos HL7 ORU^R01');
 
     // --- Extraer identificador único del reporte (MSH-10) ---
-    var reportId = msg['MSH']['MSH.10'].toString().trim();
+    var reportId = msg['MSH']['MSH.10']['MSH.10.1'].toString().trim();
     logger.info('TC-DIAG: report_id = ' + reportId);
 
     // --- Extraer código y descripción del procedimiento (OBR-4.1 y OBR-4.2) ---
@@ -81,10 +81,10 @@ try {
 
     for (var i = 0; i < numObx; i++) {
         // OBX-4 contiene el código de sección (RPSEC1, RPSEC2, RPSEC3)
-        var seccion = msg['OBX'][i]['OBX.4'].toString().trim().toUpperCase();
+        var seccion = msg['OBX'][i]['OBX.4']['OBX.4.1'].toString().trim().toUpperCase();
 
         // OBX-5 contiene el texto clínico
-        var valor = msg['OBX'][i]['OBX.5'].toString().trim();
+        var valor = msg['OBX'][i]['OBX.5']['OBX.5.1'].toString().trim();
 
         // Omitir líneas vacías o separadores vacíos (formato AGFA PACS)
         if (!valor || valor === '""') {

@@ -1,7 +1,7 @@
 """API principal TC-DIAG — clasificación multiclase de patologías en TC de cráneo simple.
 
 Expone endpoints para clasificación desde HL7/JSON y desde PDF.
-Modelo: XGBoost entrenado con datos LLM-aumentados y ROS.
+Modelo: Ensamble de 4 DistilBERT-multilingual (clasificadores binarios).
 """
 
 from __future__ import annotations
@@ -12,7 +12,9 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -34,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="TC-DIAG API",
-    description="Diagnóstico multiclase de patologías en TC de cráneo simple — XGBoost LLM+ROS",
-    version="1.0.0",
+    description="Diagnóstico multiclase de patologías en TC de cráneo simple — DistilBERT multilingual (ensamble 4 modelos binarios)",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -47,6 +49,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.error(f"Validation Error. Body: {body.decode()}")
+    logger.error(f"Details: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": body.decode()}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +86,7 @@ def _construir_respuesta(registro: Diagnostico) -> DiagnosticoResponse:
         ),
         confianza=registro.confianza or 0.0,
         requiere_revision=registro.requiere_revision or False,
-        modelo_version=registro.modelo_version or "XGBoost-LLM-ROS-v1",
+        modelo_version=registro.modelo_version or "DistilBERT-multilingual-v2",
         fuente=registro.fuente or "HL7",
         timestamp=registro.timestamp or datetime.now(timezone.utc),
     )
@@ -104,6 +116,18 @@ def clasificar_reporte(
     """
     if classifier is None:
         raise HTTPException(status_code=503, detail="El clasificador no está disponible.")
+
+    if solicitud.es_critico_fase1 is False:
+        logger.info("Reporte '%s' ignorado: No es crítico según fase previa.", solicitud.report_id)
+        return DiagnosticoResponse(
+            report_id=solicitud.report_id,
+            status="ignorado",
+            patologia="Ninguna (Paciente Sano)",
+            confianza=1.0,
+            requiere_revision=False,
+            fuente=solicitud.fuente or "HL7",
+            timestamp=datetime.now(timezone.utc),
+        )
 
     try:
         prediccion = classifier.predecir(
@@ -236,8 +260,8 @@ def health_check() -> dict:
     """
     return {
         "status": "ok",
-        "modelo": "XGBoost-LLM-ROS-v1",
-        "version": "1.0.0",
+        "modelo": "DistilBERT-multilingual-ensamble-v2",
+        "version": "2.0.0",
         "timestamp": datetime.utcnow(),
     }
 
@@ -299,6 +323,6 @@ def historial_por_id(
 def _al_iniciar() -> None:
     modelo_ok = classifier is not None
     logger.info(
-        "TC-DIAG API iniciada — modelo XGBoost | disponible: %s",
-        "OK" if modelo_ok else "NO DISPONIBLE (ejecutar entrenamiento primero)",
+        "TC-DIAG API iniciada — ensamble DistilBERT (4 modelos binarios) | disponible: %s",
+        "OK" if modelo_ok else "NO DISPONIBLE (verificar DISTILBERT_MODELS_PATH en .env)",
     )
