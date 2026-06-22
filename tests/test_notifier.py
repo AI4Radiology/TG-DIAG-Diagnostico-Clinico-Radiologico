@@ -52,3 +52,13 @@ def test_notificar_whatsapp_patologia_desconocida(mock_client_class):
     assert "TEST_UNK" in kwargs["body"]
     assert "90.0" in kwargs["body"]
     assert "ALERTA TC-DIAG" in kwargs["body"]
+
+@patch("twilio.rest.Client")
+def test_notificar_whatsapp_falla_red(mock_client_class):
+    """Simula una caída de red o timeout en la API de Twilio"""
+    mock_instance = MagicMock()
+    mock_instance.messages.create.side_effect = Exception("Connection Timeout")
+    mock_client_class.return_value = mock_instance
+
+    resultado = notificar_whatsapp("TEST_ERR", "acv", 0.99)
+    assert resultado is False # La función debe manejar la excepción y retornar False

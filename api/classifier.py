@@ -138,8 +138,11 @@ class DiagnosisClassifier:
         for etiqueta in self.modelos:
             probabilidades[etiqueta] = round(self._prob_positiva(etiqueta, texto), 4)
 
-        patologia = max(probabilidades, key=lambda k: probabilidades[k])
-        confianza = probabilidades[patologia]
+        patologia_max = max(probabilidades, key=lambda k: probabilidades[k])
+        confianza = probabilidades[patologia_max]
+
+        # Si ninguna probabilidad supera el 50%, lo consideramos normal
+        patologia = patologia_max if confianza >= 0.50 else "normal"
 
         return {
             "patologia": patologia,

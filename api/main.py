@@ -130,17 +130,21 @@ def clasificar_reporte(
         )
 
     try:
+        logger.info(f"Texto recibido de Mirth para {solicitud.report_id}: Hallazgos='{solicitud.hallazgos}' | Opinion='{solicitud.opinion}'")
+        
         prediccion = classifier.predecir(
             hallazgos=solicitud.hallazgos,
             opinion=solicitud.opinion or "",
             datos_clinicos=solicitud.datos_clinicos or "",
         )
 
-        whatsapp_enviado = notificar_whatsapp(
-            report_id=solicitud.report_id,
-            patologia=prediccion["patologia"],
-            confianza=prediccion["confianza"],
-        )
+        whatsapp_enviado = False
+        if prediccion["patologia"] != "normal":
+            whatsapp_enviado = notificar_whatsapp(
+                report_id=solicitud.report_id,
+                patologia=prediccion["patologia"],
+                confianza=prediccion["confianza"],
+            )
 
         registro = guardar_diagnostico(
             db=db,
@@ -216,11 +220,13 @@ async def clasificar_pdf(
             datos_clinicos=secciones.get("datos_clinicos", ""),
         )
 
-        whatsapp_enviado = notificar_whatsapp(
-            report_id=report_id,
-            patologia=prediccion["patologia"],
-            confianza=prediccion["confianza"],
-        )
+        whatsapp_enviado = False
+        if prediccion["patologia"] != "normal":
+            whatsapp_enviado = notificar_whatsapp(
+                report_id=report_id,
+                patologia=prediccion["patologia"],
+                confianza=prediccion["confianza"],
+            )
 
         registro = guardar_diagnostico(
             db=db,

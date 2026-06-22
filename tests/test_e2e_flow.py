@@ -53,3 +53,26 @@ def test_flujo_completo_end_to_end(mock_client_class, mock_predecir, client):
     # 4. Verificamos guardado (Hacemos un request dummy si tuviéramos endpoint de get)
     # Como no hay endpoint de GET en API, el hecho de que devolvió 200 
     # implica que no falló al guardar en sqlite (la función save se ejecutó).
+
+@patch("api.main.guardar_diagnostico")
+@patch("api.main.classifier.predecir")
+def test_flujo_completo_falla_bd(mock_predecir, mock_guardar, client):
+    """Prueba E2E que valida la resiliencia del sistema si la base de datos se cae"""
+    mock_predecir.return_value = {
+        "patologia": "hemorragia_intracraneal",
+        "confianza": 0.90,
+        "probabilidades": {},
+        "requiere_revision": False
+    }
+    
+    mock_guardar.side_effect = Exception("Database connection lost")
+    
+    payload = {
+        "report_id": "E2E_ERR_DB",
+        "hallazgos": "Sangrado masivo.",
+        "opinion": ""
+    }
+    
+    response = client.post("/clasificar", json=payload)
+    assert response.status_code == 500
+    assert "Error interno" in response.json()["detail"]
