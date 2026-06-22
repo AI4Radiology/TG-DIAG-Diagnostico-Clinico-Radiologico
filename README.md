@@ -103,6 +103,18 @@ PDG-Diagnostico-Clinico/
 
 ---
 
+## Documentación técnica y de usuario
+
+La documentación de entrega final se encuentra en [docs/](docs).
+
+Archivos principales:
+
+- [docs/README.md](docs/README.md) - índice general de documentación.
+- [docs/Manual_Usuario.md](docs/Manual_Usuario.md) - guía de uso del sistema.
+- [docs/Manual_Tecnico.md](docs/Manual_Tecnico.md) - arquitectura, ejecución y despliegue.
+
+---
+
 ## Licencia
 
 Uso académico — Proyecto de Grado, Universidad ICESI.
